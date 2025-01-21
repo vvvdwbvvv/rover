@@ -2,41 +2,76 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/vvvdwbvvv/rover/internal/config"
+	"github.com/vvvdwbvvv/rover/internal/container"
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/vvvdwbvvv/rover/internal/container"
 )
 
 var upCmd = &cobra.Command{
-	Use:   "up [container-name] [image]",
-	Short: "Launch a container",
-	Args:  cobra.MinimumNArgs(2),
+	Use:   "up [container-name]",
+	Short: "Launch containers from rover-compose.yaml (or specific container)",
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		containerName := args[0]
-		image := args[1]
-
-		// Parse CLI flags
-		command, _ := cmd.Flags().GetStringArray("command")
-		envVars, _ := cmd.Flags().GetStringArray("env")
-		ports, _ := cmd.Flags().GetStringArray("port")
-		volumes, _ := cmd.Flags().GetStringArray("volume")
-
-		fmt.Printf("🚀 Launching container: %s with image: %s\n", containerName, image)
-
-		// Launch container
-		if err := container.StartContainer(containerName, image, command, envVars, ports, volumes); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Launch failed: %v\n", err)
+		// parse rover-compose.yaml / toml / json
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error loading config: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Println("✅ Container started successfully")
+		startOrder, err := config.GetServiceStartupOrder(cfg.Services)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Dependency error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// parse CLI flags
+		extraEnv, _ := cmd.Flags().GetStringArray("env")
+		extraPorts, _ := cmd.Flags().GetStringArray("port")
+		extraVolumes, _ := cmd.Flags().GetStringArray("volume")
+
+		var containerName string
+		if len(args) > 0 {
+			containerName = args[0]
+			if _, exists := cfg.Services[containerName]; !exists {
+				fmt.Fprintf(os.Stderr, "❌ Container '%s' not found in rover-compose\n", containerName)
+				os.Exit(1)
+			}
+			startOrder = []string{containerName}
+		}
+
+		fmt.Println("🚀 Starting containers in order:", startOrder)
+
+		for _, serviceName := range startOrder {
+			service := cfg.Services[serviceName]
+
+			envVars := append(service.EnvironmentToArray(), extraEnv...)
+			ports := append(service.Ports, extraPorts...)
+			volumes := append(service.Volumes, extraVolumes...)
+
+			fmt.Printf("[+] Starting %s (%s)...\n", service.Name, service.Image)
+			if err := container.StartContainer(service.Name, service.Image, nil, envVars, ports, volumes); err != nil {
+				fmt.Fprintf(os.Stderr, "❌ Failed to start %s: %v\n", service.Name, err)
+				os.Exit(1)
+			}
+		}
+
+		fmt.Println("✅ All containers started successfully.")
 	},
 }
 
+func (s Service) EnvironmentToArray() []string {
+	env := []string{}
+	for key, value := range s.Environment {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+	return env
+}
+
 func init() {
-	upCmd.Flags().StringArray("command", nil, "Command to run inside the container (e.g., --command sh -c 'echo hello')")
-	upCmd.Flags().StringArray("env", nil, "Environment variables (e.g., --env KEY=VALUE)")
-	upCmd.Flags().StringArray("port", nil, "Port mappings (e.g., --port 8080:80)")
-	upCmd.Flags().StringArray("volume", nil, "Volume bindings (e.g., --volume /host:/container)")
+	upCmd.Flags().StringArray("env", nil, "Extra environment variables (e.g., --env KEY=VALUE)")
+	upCmd.Flags().StringArray("port", nil, "Extra port mappings (e.g., --port 8080:80)")
+	upCmd.Flags().StringArray("volume", nil, "Extra volume bindings (e.g., --volume /host:/container)")
 }
