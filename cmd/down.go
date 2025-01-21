@@ -1,39 +1,82 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"fmt"
+	"os/exec"
+	"runtime"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
+var force bool
+var containerRuntime = "runc"
+
+func init() {
+	if runtime.GOOS == "darwin" {
+		containerRuntime = "podman"
+	}
+}
+
 // downCmd represents the down command
 var downCmd = &cobra.Command{
 	Use:   "down",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Stops and removes all running containers",
+	Long: `Stops all running containers and removes them, including their volumes.
+If the --force flag is set, it will forcefully stop running containers.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("down called")
+		err := stopAndRemoveAllContainers(force)
+		if err != nil {
+			fmt.Println("Error:", err)
+		}
 	},
+}
+
+func stopAndRemoveAllContainers(force bool) error {
+	psCmd := exec.Command(containerRuntime, "ps", "-q")
+	output, err := psCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to list running containers: %v", err)
+	}
+
+	containers := strings.Fields(string(output))
+	if len(containers) == 0 {
+		fmt.Println("No running containers found.")
+		return nil
+	}
+
+	fmt.Println("Stopping and removing the following containers:", containers)
+
+	for _, container := range containers {
+		stopArgs := []string{"stop", container}
+		if force {
+			stopArgs = append(stopArgs, "-f")
+		}
+
+		stopCmd := exec.Command(containerRuntime, stopArgs...)
+		stopCmd.Stdout = exec.Command("echo").Stdout
+		stopCmd.Stderr = exec.Command("echo").Stderr
+		if err := stopCmd.Run(); err != nil {
+			fmt.Printf("Failed to stop container %s: %v\n", container, err)
+		} else {
+			fmt.Printf("Stopped container %s\n", container)
+		}
+
+		rmCmd := exec.Command(containerRuntime, "rm", "-v", container)
+		rmCmd.Stdout = exec.Command("echo").Stdout
+		rmCmd.Stderr = exec.Command("echo").Stderr
+		if err := rmCmd.Run(); err != nil {
+			fmt.Printf("Failed to remove container %s: %v\n", container, err)
+		} else {
+			fmt.Printf("Removed container %s\n", container)
+		}
+	}
+
+	fmt.Println("All containers stopped and removed.")
+	return nil
 }
 
 func init() {
 	rootCmd.AddCommand(downCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// downCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// downCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	downCmd.Flags().BoolVarP(&force, "force", "f", false, "Force stop running containers")
 }

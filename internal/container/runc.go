@@ -45,24 +45,40 @@ func StartContainer(containerName, image string, command, envVars, ports, volume
 }
 
 // StopContainer
-func StopContainer(containerName string) error {
-	cmd := exec.Command(containerRuntime, "stop", containerName)
+func StopContainer(containerName string, force bool) error {
+	cmdArgs := []string{"stop", containerName}
+	if force {
+		cmdArgs = append(cmdArgs, "-f")
+	}
+
+	cmd := exec.Command(containerRuntime, cmdArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("Stop container failed: %v", err)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("stop container failed: %v", err)
 	}
 
-	// DeleteContainer
-	cmd = exec.Command(containerRuntime, "rm", containerName)
+	// stop container
+	cmdArgs = []string{"rm", "-v", containerName}
+	cmd = exec.Command(containerRuntime, cmdArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
 	return cmd.Run()
 }
 
 // ListContainers
-func ListContainers() error {
-	cmd := exec.Command(containerRuntime, "ps")
+func ListContainers(all bool, filters []string) error {
+	cmdArgs := []string{"ps"}
+	if all {
+		cmdArgs = append(cmdArgs, "-a")
+	}
+	for _, filter := range filters {
+		cmdArgs = append(cmdArgs, "--filter", filter)
+	}
+
+	cmd := exec.Command(containerRuntime, cmdArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -70,8 +86,17 @@ func ListContainers() error {
 }
 
 // GetLogs
-func GetLogs(containerName string) error {
-	cmd := exec.Command(containerRuntime, "logs", containerName)
+func GetLogs(containerName string, follow bool, tailLines int) error {
+	cmdArgs := []string{"logs"}
+	if follow {
+		cmdArgs = append(cmdArgs, "-f")
+	}
+	if tailLines > 0 {
+		cmdArgs = append(cmdArgs, "--tail", fmt.Sprintf("%d", tailLines))
+	}
+	cmdArgs = append(cmdArgs, containerName)
+
+	cmd := exec.Command(containerRuntime, cmdArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
