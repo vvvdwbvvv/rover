@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"rover/internal/config"
 )
 
 func LoadConfig() (RoverCompose, error) {

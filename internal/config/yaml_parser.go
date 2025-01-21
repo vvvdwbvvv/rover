@@ -11,6 +11,16 @@ func ParseYAML(filePath string) (RoverCompose, error) {
 	if err != nil {
 		return config, err
 	}
+
 	err = yaml.Unmarshal(data, &config)
-	return config, err
+	if err != nil {
+		return config, err
+	}
+
+	for serviceName, service := range config.Services {
+		service.Name = serviceName
+		config.Services[serviceName] = service
+	}
+
+	return config, nil
 }
