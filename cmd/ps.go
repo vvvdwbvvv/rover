@@ -1,39 +1,43 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 )
 
+var all bool
+
 // psCmd represents the ps command
 var psCmd = &cobra.Command{
 	Use:   "ps",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("ps called")
+	Short: "List running containers",
+	Long: `Lists running containers with details such as ID, status, and image.
+Use -a to show all containers, including stopped ones.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return listContainers(all)
 	},
+}
+
+func listContainers(showAll bool) error {
+	cmdArgs := []string{"ps"}
+	if showAll {
+		cmdArgs = append(cmdArgs, "-a")
+	}
+
+	cmd := exec.Command(containerRuntime, cmdArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	fmt.Println("Fetching container list...")
+	return cmd.Run()
 }
 
 func init() {
 	rootCmd.AddCommand(psCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// psCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// psCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	//
+	psCmd.Flags().BoolVarP(&all, "all", "a", false, "Show all containers, including stopped ones")
 }

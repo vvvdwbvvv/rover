@@ -3,20 +3,12 @@ package cmd
 import (
 	"fmt"
 	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
 
 var force bool
-var containerRuntime = "runc"
-
-func init() {
-	if runtime.GOOS == "darwin" {
-		containerRuntime = "podman"
-	}
-}
 
 // downCmd represents the down command
 var downCmd = &cobra.Command{
