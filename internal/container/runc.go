@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 var containerRuntime = "runc"
@@ -16,28 +17,33 @@ func init() {
 }
 
 // StartContainer
-func StartContainer(containerName, image string, command, envVars, ports, volumes []string) error {
-	cmdArgs := []string{"run", "-d", "--name", containerName}
+func StartContainer(name, image string, command, envVars, ports, volumes []string) error {
+	args := []string{"run", "-d", "--name", name}
 
 	// Add environment variables
 	for _, env := range envVars {
-		cmdArgs = append(cmdArgs, "-e", env)
+		args = append(args, "-e", env)
 	}
 
 	// Add port mappings
 	for _, port := range ports {
-		cmdArgs = append(cmdArgs, "-p", port)
+		args = append(args, "-p", port)
 	}
 
-	// Add volume mounts
+	// Add volume bindings
 	for _, volume := range volumes {
-		cmdArgs = append(cmdArgs, "-v", volume)
+		args = append(args, "-v", volume)
 	}
 
-	cmdArgs = append(cmdArgs, image)
-	cmdArgs = append(cmdArgs, command...)
+	// Add image and command
+	args = append(args, image)
+	args = append(args, command...)
 
-	cmd := exec.Command(containerRuntime, cmdArgs...)
+	// Debug: Print the full podman command
+	fmt.Printf("[DEBUG] Executing: podman %s\n", strings.Join(args, " "))
+
+	// Execute the command
+	cmd := exec.Command("podman", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
