@@ -3,11 +3,14 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"github/rover/pkg/storage"
 	"log"
 	"os"
 	"os/exec"
+
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/loader"
@@ -21,6 +24,13 @@ var applyCmd = &cobra.Command{
 	Use:   "apply",
 	Short: "Parse docker-compose.yml and run",
 	Run: func(cmd *cobra.Command, args []string) {
+
+		db, err := storage.NewBoltDB("rover.db")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+
 		filePath, _ := cmd.Flags().GetString("file")
 		if filePath == "" {
 			filePath = "docker-compose.yml"
@@ -42,6 +52,15 @@ var applyCmd = &cobra.Command{
 		for _, service := range services {
 			if err := startContainerWithPodman(service, started, services, visiting); err != nil {
 				log.Printf("Container %s launch failed: %v", service.Name, err)
+			} else {
+				// 存入 BoltDB
+				container := storage.ContainerState{
+					Name:      service.Name,
+					ID:        service.Name, // 假設 ID 與 Name 相同
+					Status:    "running",
+					CreatedAt: time.Now(),
+				}
+				db.SaveContainer(container)
 			}
 		}
 
