@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"/rover/pkg/model"
+	"github.com/vvvdwbvvv/rover/pkg/model"
 
 	"go.etcd.io/bbolt"
 )

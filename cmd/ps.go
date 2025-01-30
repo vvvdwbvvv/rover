@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/rover/pkg/storage"
+	"github.com/vvvdwbvvv/rover/pkg/storage"
 
 	"github.com/spf13/cobra"
 )
@@ -31,7 +31,7 @@ var psCmd = &cobra.Command{
 func listAllPodmanContainers() {
 	fmt.Println("📌 Listing all running Podman containers...")
 	cmd := exec.Command("podman", "ps", "--format",
-		"table {{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}")
+		"table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedHuman}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

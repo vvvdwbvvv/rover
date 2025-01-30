@@ -7,7 +7,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/rover/pkg/storage"
+	"github.com/vvvdwbvvv/rover/pkg/model"
+	"github.com/vvvdwbvvv/rover/pkg/storage"
 
 	"strconv"
 	"strings"
@@ -55,7 +56,7 @@ var applyCmd = &cobra.Command{
 				log.Printf("Container %s launch failed: %v", service.Name, err)
 			} else {
 				// 存入 BoltDB
-				container := storage.ContainerState{
+				container := model.ContainerState{
 					Name:      service.Name,
 					ID:        service.Name, // 假設 ID 與 Name 相同
 					Status:    "running",
